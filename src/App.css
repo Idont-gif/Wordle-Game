@@ -1,39 +1,36 @@
-/* src/App.css
-   ---------------------------------------------------------------------------
-   All the visual styling for the game itself: the grid, tiles, colours, and
-   the on-screen keyboard. The class names here match the className="..." values
-   we wrote in the components (.app, .board, .row, .tile, .keyboard, etc.).
-
-   The three status colours are the official Wordle palette:
-     - correct  (green)  #6aaa64
-     - present  (yellow) #c9b458
-     - absent   (grey)   #3a3a3c
-   --------------------------------------------------------------------------- */
-
 .app {
-  /* Stack the title, board, and keyboard in a centered vertical column. */
   display: flex;
+  min-height: 100vh;
   flex-direction: column;
   align-items: center;
-  padding: 24px 12px;
-  gap: 16px;
+  gap: 18px;
+  padding: 28px 12px 32px;
 }
 
-h1 {
-  letter-spacing: 4px;
+.game-header {
+  width: min(100%, 520px);
+  border-bottom: 1px solid #3a3a3c;
+  padding-bottom: 14px;
+  text-align: center;
+}
+
+.game-header h1 {
+  font-size: 2rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .subtitle {
-  color: #9a9a9a;
-  font-size: 0.95rem;
+  margin-top: 5px;
+  color: #b7b7b7;
+  font-size: 0.9rem;
 }
 
-/* ------------------------------------------------------------------ board -- */
 .board {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin: 4px 0;
 }
 
 .row {
@@ -41,114 +38,84 @@ h1 {
   gap: 6px;
 }
 
-/* -------------------------------------------------------------------- tile -- */
 .tile {
-  width: 58px;
-  height: 58px;
-
-  /* Center the letter inside the square. */
   display: flex;
+  width: clamp(48px, 13vw, 58px);
+  height: clamp(48px, 13vw, 58px);
   align-items: center;
   justify-content: center;
-
   border: 2px solid #3a3a3c;
-  font-size: 2rem;
-  font-weight: bold;
+  border-radius: 4px;
+  font-size: clamp(1.5rem, 7vw, 2rem);
+  font-weight: 700;
   text-transform: uppercase;
-
-  /* A gentle fade when a colour is applied after submitting a guess. */
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 200ms ease, border-color 200ms ease;
 }
 
-/* The three result colours. Notice we also hide the border so the filled
-   colour looks solid and clean. */
+.tile.filled {
+  border-color: #787c7e;
+  animation: pop 100ms ease-out;
+}
+
 .tile.correct {
-  background-color: #6aaa64;
   border-color: #6aaa64;
+  background-color: #6aaa64;
 }
 
 .tile.present {
-  background-color: #c9b458;
   border-color: #c9b458;
+  background-color: #c9b458;
 }
 
 .tile.absent {
-  background-color: #3a3a3c;
   border-color: #3a3a3c;
+  background-color: #3a3a3c;
 }
 
-/* --------------------------------------------------------------- messages -- */
-.message {
+.input-error {
+  min-height: 20px;
+  color: #ffb4b4;
+  font-size: 0.88rem;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
 }
 
-.message .win {
-  color: #6aaa64;
-  font-weight: bold;
-}
-
-.message .lose {
-  color: #e06c6c;
-  font-weight: bold;
-}
-
-.play-again {
-  padding: 10px 20px;
-  font-size: 1rem;
-  font-weight: bold;
-  color: #ffffff;
-  background-color: #6aaa64;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.play-again:hover {
-  background-color: #78b96f;
-}
-
-/* -------------------------------------------------------------- keyboard -- */
 .keyboard {
   display: flex;
+  width: min(100%, 520px);
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-  width: 100%;
-  max-width: 500px;
+  gap: 7px;
+  margin-top: auto;
 }
 
 .keyboard-row {
   display: flex;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .key {
-  min-width: 40px;
-  height: 52px;
-  padding: 0 6px;
-
-  border: none;
+  min-width: 0;
+  height: 50px;
+  flex: 1;
+  border: 0;
   border-radius: 4px;
   background-color: #818384;
-  color: #ffffff;
-  font-size: 0.95rem;
-  font-weight: bold;
-  text-transform: uppercase;
+  color: #fff;
   cursor: pointer;
+  font-size: clamp(0.7rem, 2.8vw, 0.95rem);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-/* The wide Enter / Backspace keys. */
+.key:disabled {
+  cursor: default;
+}
+
 .key.wide {
-  min-width: 62px;
-  font-size: 0.75rem;
+  flex: 1.5;
+  font-size: clamp(0.58rem, 2vw, 0.75rem);
 }
 
-/* The keyboard keys reuse the same three status colours as the tiles. */
 .key.correct {
   background-color: #6aaa64;
 }
@@ -159,4 +126,64 @@ h1 {
 
 .key.absent {
   background-color: #3a3a3c;
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.game-over-modal {
+  width: min(100%, 360px);
+  border: 1px solid #57585a;
+  border-radius: 12px;
+  padding: 30px 24px;
+  background: #202124;
+  text-align: center;
+}
+
+.game-over-modal h2 {
+  margin-bottom: 12px;
+}
+
+.game-over-modal p {
+  color: #d3d3d3;
+}
+
+.solution-word {
+  display: block;
+  margin: 14px 0 22px;
+  color: #c9b458;
+  font-size: 1.5rem;
+  letter-spacing: 0.18em;
+}
+
+.play-again {
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 20px;
+  background: #6aaa64;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.play-again:hover {
+  background: #78b96f;
+}
+
+@keyframes pop {
+  50% { transform: scale(1.08); }
+}
+
+@media (max-width: 380px) {
+  .key {
+    height: 44px;
+  }
 }

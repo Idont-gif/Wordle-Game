@@ -1,135 +1,104 @@
-// src/hooks/useWordle.js
-// -----------------------------------------------------------------------------
-// A CUSTOM HOOK: the game's memory and rules, all in one place.
-//
-// A "hook" is just a JavaScript function whose name starts with `use`. React
-// lets hooks store state (with useState) and react to changes. By moving ALL
-// the game logic into this one custom hook, our components can stay simple and
-// focus only on *drawing* the screen.
-//
-// This hook remembers:
-//   - the secret answer
-//   - the 6 rows of guesses (and their colours once submitted)
-//   - what the player is currently typing
-//   - which row (turn) we are on
-//   - whether the player has won
-//   - the colour to paint each key on the on-screen keyboard
-//
-// And it exposes ONE function to the outside world: handleKeyup, which reacts
-// to every key the player presses.
-// -----------------------------------------------------------------------------
-
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { checkGuess } from '../utils/checkGuess';
 
-// Game rules as named constants (so the numbers aren't "magic" and mysterious).
-export const WORD_LENGTH = 5; // every word is 5 letters long
-export const MAX_TURNS = 6;   // the player gets 6 guesses
+export const WORD_LENGTH = 5;
+export const MAX_TURNS = 6;
+export const GAME_STATUS = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  WON: 'WON',
+  LOST: 'LOST',
+};
 
-export function useWordle(answer) {
-  // ------------------------------------------------------------------ state --
-  // `turn` = which row we are filling right now (0 through 5).
-  const [turn, setTurn] = useState(0);
+const STATUS_RANK = {
+  absent: 1,
+  present: 2,
+  correct: 3,
+};
 
-  // `currentGuess` = the word being typed in the active row, e.g. "cra".
+export function useWordle(solutionWord) {
   const [currentGuess, setCurrentGuess] = useState('');
-
-  // `guesses` = an array with one slot per row. Each slot is either:
-  //   - null  (row not submitted yet), or
-  //   - an array of coloured-letter objects from checkGuess().
-  // We create 6 empty (null) slots up front with Array(MAX_TURNS).fill(null).
-  const [guesses, setGuesses] = useState(Array(MAX_TURNS).fill(null));
-
-  // `isCorrect` = did the player win? Starts false, flips to true on a match.
-  const [isCorrect, setIsCorrect] = useState(false);
-
-  // `usedKeys` = remembers the best colour each letter has earned, so the
-  // on-screen keyboard can show green/yellow/grey hints. e.g. { a: 'correct' }
+  const [pastGuesses, setPastGuesses] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [gameStatus, setGameStatus] = useState(GAME_STATUS.IN_PROGRESS);
   const [usedKeys, setUsedKeys] = useState({});
+  const [inputError, setInputError] = useState('');
+  const lastSubmittedTurn = useRef(null);
 
-  // --------------------------------------------------------- helper actions --
+  const resetGame = useCallback(() => {
+    setCurrentGuess('');
+    setPastGuesses([]);
+    setEvaluations([]);
+    setGameStatus(GAME_STATUS.IN_PROGRESS);
+    setUsedKeys({});
+    setInputError('');
+    lastSubmittedTurn.current = null;
+  }, []);
 
-  // Add a letter to the current guess (only if the row isn't full yet).
-  const addLetter = (letter) => {
-    setCurrentGuess((prev) =>
-      prev.length < WORD_LENGTH ? prev + letter : prev
-    );
-  };
+  const submitGuess = useCallback(() => {
+    if (gameStatus !== GAME_STATUS.IN_PROGRESS) return;
 
-  // Remove the last letter (the Backspace behaviour).
-  const removeLetter = () => {
-    setCurrentGuess((prev) => prev.slice(0, -1));
-  };
+    if (currentGuess.length !== WORD_LENGTH) {
+      setInputError('Enter 5 letters before submitting.');
+      return;
+    }
 
-  // Submit the current guess when the player presses Enter.
-  const submitGuess = () => {
-    // Rule 1: the game is over once we've used all our turns or already won.
-    if (turn >= MAX_TURNS || isCorrect) return;
+    const turn = pastGuesses.length;
+    if (lastSubmittedTurn.current === turn) return;
+    lastSubmittedTurn.current = turn;
 
-    // Rule 2: the guess must be exactly 5 letters — no half-typed words.
-    if (currentGuess.length !== WORD_LENGTH) return;
+    const evaluation = checkGuess(currentGuess, solutionWord);
+    const nextGuesses = [...pastGuesses, currentGuess];
+    setPastGuesses(nextGuesses);
+    setEvaluations((previous) => [...previous, evaluation]);
+    setCurrentGuess('');
+    setInputError('');
 
-    // Run our colouring algorithm to grade this guess.
-    const formattedGuess = checkGuess(currentGuess, answer);
-
-    // Save the graded guess into the correct row of the `guesses` array.
-    // We copy the array first (never mutate state directly in React!).
-    setGuesses((prevGuesses) => {
-      const newGuesses = [...prevGuesses];
-      newGuesses[turn] = formattedGuess;
-      return newGuesses;
-    });
-
-    // Update the on-screen keyboard colours based on this guess.
-    setUsedKeys((prevUsedKeys) => {
-      const newKeys = { ...prevUsedKeys };
-      formattedGuess.forEach(({ letter, status }) => {
-        const current = newKeys[letter];
-        // A green should never be "downgraded" to yellow/grey, and a yellow
-        // should never be downgraded to grey. So we only upgrade colours.
-        if (status === 'correct') {
-          newKeys[letter] = 'correct';
-        } else if (status === 'present' && current !== 'correct') {
-          newKeys[letter] = 'present';
-        } else if (status === 'absent' && !current) {
-          newKeys[letter] = 'absent';
+    setUsedKeys((previous) => {
+      const next = { ...previous };
+      evaluation.forEach(({ letter, status }) => {
+        if (STATUS_RANK[status] > (STATUS_RANK[next[letter]] || 0)) {
+          next[letter] = status;
         }
       });
-      return newKeys;
+      return next;
     });
 
-    // Did they win? (The guess exactly equals the answer.)
-    if (currentGuess === answer) {
-      setIsCorrect(true);
+    if (currentGuess === solutionWord) {
+      setGameStatus(GAME_STATUS.WON);
+    } else if (nextGuesses.length === MAX_TURNS) {
+      setGameStatus(GAME_STATUS.LOST);
     }
+  }, [currentGuess, gameStatus, pastGuesses, solutionWord]);
 
-    // Move to the next row and clear the typing area for the next guess.
-    setTurn((prevTurn) => prevTurn + 1);
-    setCurrentGuess('');
+  const handleKeyInput = useCallback(
+    (key) => {
+      if (gameStatus !== GAME_STATUS.IN_PROGRESS) return;
+
+      if (key === 'Enter') {
+        submitGuess();
+      } else if (key === 'Backspace') {
+        setCurrentGuess((previous) => previous.slice(0, -1));
+        setInputError('');
+      } else if (/^[a-z]$/i.test(key)) {
+        setCurrentGuess((previous) =>
+          previous.length < WORD_LENGTH
+            ? previous + key.toLowerCase()
+            : previous
+        );
+        setInputError('');
+      }
+    },
+    [gameStatus, submitGuess]
+  );
+
+  return {
+    currentGuess,
+    pastGuesses,
+    evaluations,
+    gameStatus,
+    usedKeys,
+    inputError,
+    handleKeyInput,
+    resetGame,
   };
-
-  // ------------------------------------------------------ the one public API --
-  // This single function receives every keypress and routes it to the right
-  // helper above. Components will wire this up to the real keyboard and to the
-  // clickable on-screen keyboard.
-  const handleKeyup = (key) => {
-    if (key === 'Enter') {
-      submitGuess();
-      return;
-    }
-
-    if (key === 'Backspace') {
-      removeLetter();
-      return;
-    }
-
-    // Only accept single alphabet letters (a–z or A–Z). This ignores keys like
-    // Shift, Tab, arrows, numbers, etc.
-    if (/^[a-zA-Z]$/.test(key)) {
-      addLetter(key.toLowerCase());
-    }
-  };
-
-  // Expose the pieces the UI needs to draw itself, plus the input handler.
-  return { turn, currentGuess, guesses, isCorrect, usedKeys, handleKeyup };
 }

@@ -16,7 +16,7 @@ const KEY_ROWS = [
   ['Enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'Backspace'],
 ];
 
-export default function Keyboard({ usedKeys, onKeyPress }) {
+export default function Keyboard({ usedKeys, onKeyPress, disabled }) {
   return (
     <div className="keyboard">
       {KEY_ROWS.map((row, rowIndex) => (
@@ -40,7 +40,15 @@ export default function Keyboard({ usedKeys, onKeyPress }) {
               <button
                 key={key}
                 className={className}
-                // Clicking a key calls the same handler as the real keyboard.
+                type="button"
+                disabled={disabled}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onKeyPress('Enter');
+                  }
+                }}
                 onClick={() => onKeyPress(key)}
               >
                 {key === 'Backspace' ? '⌫' : key}

@@ -10,10 +10,17 @@
 // -----------------------------------------------------------------------------
 
 export default function Tile({ letter, status }) {
-  // We build the CSS class name dynamically. Every tile gets the base "tile"
-  // class. If it has a status (green/yellow/grey), we append that too, e.g.
-  // "tile correct". The .trim() removes the trailing space when status is empty.
-  const className = `tile ${status ? status : ''}`.trim();
+  const className = ['tile', letter ? 'filled' : '', status || '']
+    .filter(Boolean)
+    .join(' ');
 
-  return <div className={className}>{letter}</div>;
+  return (
+    <div
+      className={className}
+      role="gridcell"
+      aria-label={status ? `${letter}, ${status}` : letter || 'empty'}
+    >
+      {letter}
+    </div>
+  );
 }
